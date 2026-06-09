@@ -1,0 +1,120 @@
+name: Databricks CI/CD
+
+on:
+  push:
+    branches:
+      - production
+      - staging
+  pull_request:
+    branches:
+      - production
+      - staging
+  workflow_dispatch:
+    inputs:
+      deploy_prod:
+        description: Deploy to production after staging rollout
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: databricks-cicd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build wheel and validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Sync dependencies
+        run: uv sync --frozen
+
+      - name: Compile source tree
+        run: uv run python -m compileall src
+
+      - name: Build wheel
+        run: uv build --wheel
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-wheel
+          path: dist/*.whl
+          if-no-files-found: error
+
+  deploy_staging:
+    name: Deploy to Databricks staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-wheel
+          path: dist
+
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy and rollout on staging
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_APP_NAME: ${{ secrets.DATABRICKS_APP_NAME }}
+          DATABRICKS_VOLUME_PATH: ${{ secrets.DATABRICKS_VOLUME_PATH }}
+          RUNTIME_ENV_B64: ${{ secrets.RUNTIME_ENV_B64 }}
+          APP_ENV: staging
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          chmod +x scripts/databricks_deploy.sh
+          WHEEL_PATH="$(ls -1 dist/*.whl | head -n 1)"
+          scripts/databricks_deploy.sh "$APP_ENV" "$WHEEL_PATH"
+
+  deploy_production:
+    name: Deploy to Databricks production
+    runs-on: ubuntu-latest
+    needs: deploy_staging
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_prod == true
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-wheel
+          path: dist
+
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Deploy and rollout on production
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_APP_NAME: ${{ secrets.DATABRICKS_APP_NAME }}
+          DATABRICKS_VOLUME_PATH: ${{ secrets.DATABRICKS_VOLUME_PATH }}
+          RUNTIME_ENV_B64: ${{ secrets.RUNTIME_ENV_B64 }}
+          APP_ENV: production
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          chmod +x scripts/databricks_deploy.sh
+          WHEEL_PATH="$(ls -1 dist/*.whl | head -n 1)"
+          scripts/databricks_deploy.sh "$APP_ENV" "$WHEEL_PATH"

@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-application"
+version = "0.1.0"
+description = "Supervisor-driven multi-agent application with shared memory and typed specialist messaging."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "anthropic>=0.40.0",
+    "databricks-sql-connector>=3.3.0",
+    "python-dotenv>=1.0.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+multi-ai-agent = "ai_app.main:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ai_app*"]
+
+[tool.setuptools.package-data]
+ai_app = ["resources/*"]
+
+[tool.uv]
+package = true

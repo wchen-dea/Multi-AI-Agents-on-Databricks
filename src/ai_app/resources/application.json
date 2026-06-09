@@ -1,0 +1,18 @@
+{
+  "application": {
+    "name": "multi-ai-agent-application",
+    "entrypoint": "multi-ai-agent",
+    "default_output_dir": "./output",
+    "max_workers": 4,
+    "quiet": false
+  },
+  "llm": {
+    "provider": "anthropic",
+    "model": "claude-opus-4-7",
+    "api_key_env": "ANTHROPIC_API_KEY"
+  },
+  "collaboration": {
+    "memory_file": ".agent_memory.json",
+    "message_bus_file": ".agent_messages.json"
+  }
+}
