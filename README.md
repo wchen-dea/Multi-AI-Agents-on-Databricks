@@ -36,6 +36,7 @@ uv run multi-ai-agent --task "build a user authentication system"
 
 - [Architecture](docs/architecture.md)
 - [Runbook](docs/runbook.md)
+- [Container Setup](container/README.md)
 
 ## Project Structure
 
@@ -54,6 +55,10 @@ agentic-application/
 ├── docs/
 │   ├── architecture.md
 │   └── runbook.md
+├── container/
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   └── README.md
 ├── .github/workflows/
 ├── scripts/
 ├── pyproject.toml

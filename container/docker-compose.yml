@@ -1,0 +1,44 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: multi-ai-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  app:
+    build:
+      context: ..
+      dockerfile: container/Dockerfile
+    container_name: multi-ai-app
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DB: agentic_application
+      MONGODB_MEMORY_COLLECTION: shared_memory
+      APP_TASK: ${APP_TASK:-build a user authentication system}
+      APP_PROJECT: ${APP_PROJECT:-/workspace/output}
+      APP_WORKERS: ${APP_WORKERS:-4}
+      APP_ARGS: ${APP_ARGS:-}
+    volumes:
+      - ../output:/workspace/output
+    command:
+      [
+        "sh",
+        "-c",
+        "multi-ai-agent --task \"$$APP_TASK\" --project \"$$APP_PROJECT\" --workers \"$$APP_WORKERS\" $$APP_ARGS"
+      ]
+
+volumes:
+  mongodb_data:

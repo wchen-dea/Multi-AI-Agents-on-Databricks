@@ -60,8 +60,17 @@ make init-env
 make run TASK="build a user authentication system"
 make run-quiet TASK="build a data pipeline"
 make run-reset TASK="redesign the recommendation engine"
+make run-container
+make stop-container
+make clean-container
 make build-wheel
 make clean
+```
+
+Containerized run with MongoDB:
+
+```bash
+docker compose -f container/docker-compose.yml up --build
 ```
 
 ## Validation Checklist
