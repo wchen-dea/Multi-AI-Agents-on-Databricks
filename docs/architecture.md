@@ -126,5 +126,5 @@ Important behavior:
 - src/ai_app/main.py: CLI entrypoint and report output.
 - src/ai_app/supervisor.py: orchestration and feedback control.
 - src/ai_app/agents/base.py: specialist runtime loop and shared tools.
-- src/ai_app/memory.py: file-backed shared state.
-- src/ai_app/message_bus.py: typed message logging and inbox semantics.
+- src/ai_app/utils/memory.py: file-backed shared state.
+- src/ai_app/utils/message_bus.py: typed message logging and inbox semantics.

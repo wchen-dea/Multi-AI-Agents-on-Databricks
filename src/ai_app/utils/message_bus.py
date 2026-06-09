@@ -171,10 +171,9 @@ class MessageBus:
     def summary(self) -> str:
         with self._lock:
             if not self._messages:
-                return "(no messages)"
+                return "(message bus is empty)"
             lines = []
-            for m in self._messages[-20:]:  # last 20
-                lines.append(
-                    f"  #{m.id:3d} {m.from_agent:15s} → {m.to:15s}  [{m.type:8s}]  {m.subject[:50]}"
-                )
+            for m in self._messages[-50:]:
+                snippet = m.content[:60].replace("\n", " ")
+                lines.append(f"#{m.id} {m.from_agent} → {m.to} [{m.type}] {m.subject}: {snippet}…")
             return "\n".join(lines)

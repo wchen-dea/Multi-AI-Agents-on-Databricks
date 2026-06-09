@@ -14,8 +14,7 @@ from typing import Any
 
 import anthropic
 
-from ..memory import SharedMemory
-from ..message_bus import MessageBus, BROADCAST
+from ..utils import SharedMemory, MessageBus, BROADCAST
 from ..integrations import DataSourceType, MCPDataSourceGateway
 
 MODEL = "claude-opus-4-7"

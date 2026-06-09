@@ -45,10 +45,11 @@ agentic-application/
 │   └── ai_app/
 │       ├── main.py
 │       ├── supervisor.py
-│       ├── memory.py
-│       ├── message_bus.py
 │       ├── integrations/
 │       ├── agents/
+│       ├── utils/
+│       │   ├── memory.py
+│       │   └── message_bus.py
 │       └── resources/
 ├── docs/
 │   ├── architecture.md
