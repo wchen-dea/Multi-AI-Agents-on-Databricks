@@ -48,6 +48,7 @@ For runtime operations and deployment details, see the runbook.
 
 - [Architecture](docs/architecture.md)
 - [Runbook](docs/runbook.md)
+- [ADRs](docs/adrs/README.md)
 - [Container Setup](container/README.md)
 
 ## Project Structure
@@ -65,6 +66,7 @@ agentic-application/
 │       │   └── message_bus.py
 │       └── resources/
 ├── docs/
+│   ├── adrs/
 │   ├── architecture.md
 │   └── runbook.md
 ├── container/

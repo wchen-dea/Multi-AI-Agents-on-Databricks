@@ -4,6 +4,8 @@
 
 This runbook covers day-to-day operation of Agentic Application, including local execution, validation, packaging, and Databricks CI/CD rollout.
 
+For architectural rationale and trade-offs, see [ADRs](adrs/README.md).
+
 ## Local Setup
 
 ```bash

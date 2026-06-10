@@ -1,5 +1,7 @@
 # Architecture
 
+Related decisions are documented in [ADRs](adrs/README.md).
+
 ## System Overview
 
 The application uses a supervisor-specialist architecture with four planes:
