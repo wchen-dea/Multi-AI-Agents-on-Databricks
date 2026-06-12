@@ -20,6 +20,7 @@ Exchange topology
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 from datetime import datetime, timezone
@@ -33,6 +34,7 @@ MessageType = Literal["context", "artifact", "question", "feedback", "decision",
 BROADCAST = "__all__"
 _EXCHANGE = "agent_messages"
 _AUDIT_QUEUE = "agent_inbox.__audit__"
+LOGGER = logging.getLogger(__name__)
 
 
 class Message:
@@ -116,11 +118,18 @@ class MessageBus:
         # without re-consuming from RabbitMQ.
         self._audit: list[Message] = []
         self._next_id = 0
+        self._in_memory_mode = False
 
         self._conn: pika.BlockingConnection | None = None
         self._channel: pika.adapters.blocking_connection.BlockingChannel | None = None
-        self._connect()
-        self._setup_exchange()
+        try:
+            self._connect()
+            self._setup_exchange()
+        except Exception as exc:
+            self._in_memory_mode = True
+            self._conn = None
+            self._channel = None
+            LOGGER.warning("RabbitMQ unavailable, using in-memory MessageBus fallback: %s", exc)
 
     # ── Connection management ─────────────────────────────────────────────────
 
@@ -133,6 +142,8 @@ class MessageBus:
 
     def _ensure_connection(self) -> None:
         """Reconnect if the channel or connection has been closed."""
+        if self._in_memory_mode:
+            return
         try:
             if self._conn is None or self._conn.is_closed:
                 self._connect()
@@ -145,6 +156,8 @@ class MessageBus:
             self._setup_exchange()
 
     def _setup_exchange(self) -> None:
+        if self._channel is None:
+            return
         ch = self._channel
         # Durable topic exchange so routing survives broker restarts
         ch.exchange_declare(exchange=_EXCHANGE, exchange_type="topic", durable=True)
@@ -157,6 +170,8 @@ class MessageBus:
 
     def _ensure_agent_queue(self, agent: str) -> str:
         """Declare (idempotent) a durable inbox queue for *agent* and return its name."""
+        if self._channel is None:
+            return self._agent_queue(agent)
         queue_name = self._agent_queue(agent)
         self._channel.queue_declare(queue=queue_name, durable=True)
         # Bind to messages addressed directly to this agent
@@ -177,7 +192,6 @@ class MessageBus:
     ) -> Message:
         """Publish a message from *from_agent* to *to* (agent name or BROADCAST)."""
         with self._lock:
-            self._ensure_connection()
             msg = Message(
                 id=self._next_id,
                 from_agent=from_agent,
@@ -189,6 +203,11 @@ class MessageBus:
             )
             self._next_id += 1
 
+            if self._in_memory_mode:
+                self._audit.append(msg)
+                return msg
+
+            self._ensure_connection()
             # Make sure the recipient's inbox queue exists before publishing
             if to != BROADCAST:
                 self._ensure_agent_queue(to)
@@ -223,9 +242,26 @@ class MessageBus:
         semantics); callers that need replay should use *all_messages()* or *thread()*.
         """
         with self._lock:
+            if self._in_memory_mode:
+                out: list[Message] = []
+                for m in self._audit:
+                    if m.to not in (agent, BROADCAST):
+                        continue
+                    if type_filter and m.type != type_filter:
+                        continue
+
+                    has_read = agent in m.read_by
+                    if unread_only and has_read:
+                        continue
+                    if not has_read:
+                        m.read_by.append(agent)
+                    out.append(m)
+                return out
+
             self._ensure_connection()
             queue_name = self._ensure_agent_queue(agent)
             out: list[Message] = []
+            audit_by_id = {a.id: a for a in self._audit}
 
             while True:
                 method, _props, body = self._channel.basic_get(queue=queue_name, auto_ack=True)
@@ -244,14 +280,12 @@ class MessageBus:
                     m.read_by.append(agent)
 
                 # Keep audit log in sync
-                existing_ids = {a.id for a in self._audit}
-                if m.id not in existing_ids:
+                existing = audit_by_id.get(m.id)
+                if existing is None:
                     self._audit.append(m)
+                    audit_by_id[m.id] = m
                 else:
-                    for a in self._audit:
-                        if a.id == m.id:
-                            a.read_by = m.read_by
-                            break
+                    existing.read_by = m.read_by
 
                 out.append(m)
 
@@ -276,6 +310,10 @@ class MessageBus:
         Use with care — messages are permanently deleted.
         """
         with self._lock:
+            if self._in_memory_mode:
+                self._audit.clear()
+                self._next_id = 0
+                return
             self._ensure_connection()
             try:
                 self._channel.queue_purge(_AUDIT_QUEUE)

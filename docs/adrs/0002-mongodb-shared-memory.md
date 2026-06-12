@@ -3,14 +3,15 @@
 - Status: Accepted
 - Date: 2026-06-09
 - Deciders: Agentic Application maintainers
+- Technical Story: N/A
 
 ## Context
 
-Agents need a shared, persistent memory store for artifacts, decisions, and feedback history. The store must support concurrent updates, simple key-based access, and history-oriented inspection.
+Agents need a shared, persistent memory store for artifacts, decisions, and feedback history. The store must support concurrent updates, simple key-based access, and version-aware inspection.
 
 ## Decision
 
-Use MongoDB as the shared memory backend, implemented in `src/ai_app/utils/memory.py`.
+Use MongoDB as the primary shared-memory backend, implemented in `src/ai_app/utils/memory.py`.
 
 - Connection is configured through `MONGODB_URI`.
 - Logical grouping uses `MONGODB_DB` and `MONGODB_MEMORY_COLLECTION`.
@@ -18,8 +19,8 @@ Use MongoDB as the shared memory backend, implemented in `src/ai_app/utils/memor
 
 ## Consequences
 
-- Durable, queryable storage that supports multi-agent workflows and reruns.
-- Straightforward operational model with common local/container deployment paths.
+- Provides durable, queryable storage that supports multi-agent workflows and reruns.
+- Preserves a straightforward operational model with common local and container deployment paths.
 - Introduces dependency on MongoDB availability and configuration.
 
 ## Alternatives Considered

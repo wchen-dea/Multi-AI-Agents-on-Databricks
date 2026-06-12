@@ -5,6 +5,15 @@
 - Deciders: Team Name
 - Technical Story: Optional reference to issue, ticket, or requirement
 
+## Section Order
+
+Use this exact section order for consistency:
+
+1. Context
+2. Decision
+3. Consequences
+4. Alternatives Considered
+
 ## Context
 
 Describe the problem, constraints, and forces that led to this decision.

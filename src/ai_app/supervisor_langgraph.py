@@ -20,32 +20,12 @@ from typing import Any, TypedDict
 import anthropic
 from langgraph.graph import END, START, StateGraph
 
-from .agents import (
-    AgentResult,
-    AIEngineerAgent,
-    BackendAgent,
-    DataEngineerAgent,
-    DataScientistAgent,
-    FrontendAgent,
-    FullStackAgent,
-    MLEngineerAgent,
-)
+from .agents import AgentResult, SPECIALIST_NAMES, SPECIALIST_REGISTRY
+from .settings import MODEL, MAX_TOKENS
 from .supervisor import SupervisorResult
 from .utils import MessageBus, SharedMemory
 
-MODEL = "claude-opus-4-7"
-MAX_TOKENS = 8096
 LOGGER = logging.getLogger(__name__)
-
-SPECIALIST_REGISTRY = {
-    "frontend": FrontendAgent,
-    "backend": BackendAgent,
-    "ml_engineer": MLEngineerAgent,
-    "ai_engineer": AIEngineerAgent,
-    "fullstack": FullStackAgent,
-    "data_engineer": DataEngineerAgent,
-    "data_scientist": DataScientistAgent,
-}
 
 
 @dataclass
@@ -70,14 +50,16 @@ class LangGraphSupervisorAgent:
         project_root: str = ".",
         verbose: bool = True,
         max_workers: int = 4,
+        memory: SharedMemory | None = None,
+        bus: MessageBus | None = None,
     ):
         self.client = client
         self.project_root = str(Path(project_root).resolve())
         self.verbose = verbose
         self.max_workers = max_workers
 
-        self.memory = SharedMemory()
-        self.bus = MessageBus()
+        self.memory = memory or SharedMemory()
+        self.bus = bus or MessageBus()
         self._specialist_results: list[AgentResult] = []
         self._graph = self._build_graph()
 
@@ -117,7 +99,7 @@ class LangGraphSupervisorAgent:
             "Return JSON only: {\"calls\": [{\"specialist\": str, \"task\": str, "
             "\"context\": str, \"group\": int}]}. "
             "Rules: use only these specialists: "
-            "frontend, backend, ml_engineer, ai_engineer, fullstack, data_engineer, data_scientist. "
+            f"{', '.join(SPECIALIST_NAMES)}. "
             "Use group numbers so calls in the same group are independent and can run in parallel. "
             "Keep between 1 and 6 calls."
         )

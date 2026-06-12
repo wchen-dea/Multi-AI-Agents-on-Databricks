@@ -3,14 +3,15 @@
 - Status: Accepted
 - Date: 2026-06-09
 - Deciders: Agentic Application maintainers
+- Technical Story: N/A
 
 ## Context
 
-Agents require asynchronous, typed communication with reliable delivery semantics. Earlier file-based message approaches were insufficient for durable inboxes and operational observability in multi-agent workflows.
+Agents require asynchronous, typed communication with reliable delivery semantics. Earlier file-based messaging approaches were insufficient for durable inboxes and operational observability in multi-agent workflows.
 
 ## Decision
 
-Use RabbitMQ as the message bus, implemented in `src/ai_app/utils/message_bus.py`.
+Use RabbitMQ as the primary inter-agent message bus, implemented in `src/ai_app/utils/message_bus.py`.
 
 - Configure broker connection through `RABBITMQ_URL`.
 - Use a durable topic exchange `agent_messages`.
@@ -19,8 +20,8 @@ Use RabbitMQ as the message bus, implemented in `src/ai_app/utils/message_bus.py
 ## Consequences
 
 - Improves message durability, routing flexibility, and multi-agent reliability.
-- Enables better operational debugging through audit-friendly messaging topology.
-- Adds infrastructure dependency on RabbitMQ and related configuration.
+- Enables stronger operational debugging through an audit-friendly messaging topology.
+- Adds an infrastructure dependency on RabbitMQ and related configuration.
 
 ## Alternatives Considered
 

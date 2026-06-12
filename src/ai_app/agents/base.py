@@ -23,9 +23,7 @@ from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
 
 from ..utils import SharedMemory, MessageBus, BROADCAST
 from ..integrations import DataSourceType, MCPDataSourceGateway
-
-MODEL = "claude-opus-4-7"
-MAX_TOKENS = 8096
+from ..settings import MODEL, MAX_TOKENS
 LOGGER = logging.getLogger(__name__)
 
 MessageType = Literal["context", "artifact", "question", "feedback", "decision", "broadcast"]

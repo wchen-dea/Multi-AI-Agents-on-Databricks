@@ -22,194 +22,12 @@ from typing import Any
 
 import anthropic
 
-from .utils import SharedMemory, MessageBus, BROADCAST
-from .agents import (
-    AgentResult,
-    AIEngineerAgent,
-    BackendAgent,
-    DataEngineerAgent,
-    DataScientistAgent,
-    FrontendAgent,
-    FullStackAgent,
-    MLEngineerAgent,
-)
-
-MODEL = "claude-opus-4-7"
-MAX_TOKENS = 8096
-MAX_ITERATIONS = 40
+from .agents import AgentResult, SPECIALIST_REGISTRY
+from .orchestration import SUPERVISOR_TOOLS, SYSTEM_PROMPT
+from .settings import MODEL, MAX_ITERATIONS, MAX_TOKENS
+from .utils import MessageBus, SharedMemory
 
 LOGGER = logging.getLogger(__name__)
-
-SPECIALIST_REGISTRY = {
-    "frontend": FrontendAgent,
-    "backend": BackendAgent,
-    "ml_engineer": MLEngineerAgent,
-    "ai_engineer": AIEngineerAgent,
-    "fullstack": FullStackAgent,
-    "data_engineer": DataEngineerAgent,
-    "data_scientist": DataScientistAgent,
-}
-
-# ── Tool schemas ──────────────────────────────────────────────────────────────
-
-def _specialist_tool(name: str, role: str, desc: str) -> dict:
-    return {
-        "name": f"call_{name}",
-        "description": f"Delegate a sub-task to the {role}. {desc}",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "task": {"type": "string", "description": "Self-contained task for the specialist."},
-                "context": {"type": "string", "description": "Optional context from other specialists.", "default": ""},
-            },
-            "required": ["task"],
-        },
-    }
-
-
-SUPERVISOR_TOOLS = [
-    _specialist_tool("frontend",      "Frontend Engineer",   "React, TypeScript, Tailwind, a11y, state management."),
-    _specialist_tool("backend",       "Backend Engineer",    "FastAPI, databases, auth, REST APIs, Python services."),
-    _specialist_tool("ml_engineer",   "ML Engineer",         "PyTorch, scikit-learn, training pipelines, MLOps."),
-    _specialist_tool("ai_engineer",   "AI Engineer",         "LLM apps, RAG, Claude tool use, prompt engineering."),
-    _specialist_tool("fullstack",     "Full-Stack Engineer", "End-to-end features, Next.js, Docker, CI/CD."),
-    _specialist_tool("data_engineer", "Data Engineer",       "ETL/ELT, Airflow, dbt, Spark, streaming, SQL."),
-    _specialist_tool("data_scientist","Data Scientist",      "EDA, statistics, A/B tests, forecasting."),
-    {
-        "name": "call_specialists_parallel",
-        "description": "Call multiple independent specialists simultaneously.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "calls": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "specialist": {"type": "string", "enum": list(SPECIALIST_REGISTRY)},
-                            "task": {"type": "string"},
-                            "context": {"type": "string", "default": ""},
-                        },
-                        "required": ["specialist", "task"],
-                    },
-                }
-            },
-            "required": ["calls"],
-        },
-    },
-    # ── Feedback tools ────────────────────────────────────────────────────────
-    {
-        "name": "request_peer_review",
-        "description": (
-            "Ask one specialist to review and critique another's work. "
-            "The reviewer reads the artifact from shared memory, posts feedback "
-            "back to memory and the message bus, and the original author can then revise. "
-            "Use this for quality checks, cross-domain validation, and iterative improvement."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "reviewer": {"type": "string", "enum": list(SPECIALIST_REGISTRY), "description": "Specialist who will review."},
-                "author": {"type": "string", "description": "Specialist whose work is being reviewed."},
-                "artifact_key": {"type": "string", "description": "Shared memory key of the artifact to review."},
-                "review_criteria": {"type": "string", "description": "What to look for: correctness, security, performance, etc."},
-            },
-            "required": ["reviewer", "author", "artifact_key", "review_criteria"],
-        },
-    },
-    {
-        "name": "request_revision",
-        "description": (
-            "Ask a specialist to revise their work based on feedback in shared memory. "
-            "Pass the feedback_key (where feedback is stored) and the original artifact_key."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "specialist": {"type": "string", "enum": list(SPECIALIST_REGISTRY)},
-                "artifact_key": {"type": "string", "description": "Memory key of the artifact to revise."},
-                "feedback_key": {"type": "string", "description": "Memory key where feedback was stored."},
-            },
-            "required": ["specialist", "artifact_key", "feedback_key"],
-        },
-    },
-    # ── Memory tools (supervisor) ─────────────────────────────────────────────
-    {
-        "name": "memory_write",
-        "description": "Write a value to shared memory from the supervisor.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "key": {"type": "string"},
-                "value": {"type": "string"},
-                "summary": {"type": "string", "default": ""},
-            },
-            "required": ["key", "value"],
-        },
-    },
-    {
-        "name": "memory_read",
-        "description": "Read a value from shared memory.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"key": {"type": "string"}},
-            "required": ["key"],
-        },
-    },
-    {
-        "name": "memory_list",
-        "description": "List all keys in shared memory.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"prefix": {"type": "string", "default": ""}},
-        },
-    },
-    {
-        "name": "broadcast_message",
-        "description": "Broadcast a message to all agents (stored in message bus).",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "type": {"type": "string", "enum": ["context", "decision", "broadcast"]},
-                "subject": {"type": "string"},
-                "content": {"type": "string"},
-            },
-            "required": ["type", "subject", "content"],
-        },
-    },
-    {
-        "name": "read_all_messages",
-        "description": "Read the full message bus log — all inter-agent exchanges.",
-        "input_schema": {"type": "object", "properties": {}},
-    },
-]
-
-# ── System prompt ─────────────────────────────────────────────────────────────
-
-SYSTEM_PROMPT = """You are a senior engineering supervisor who orchestrates a team of specialist agents using shared memory and a message bus.
-
-Your team:
-  frontend       — React, TypeScript, Tailwind, accessibility
-  backend        — FastAPI, databases, auth, REST APIs
-  ml_engineer    — PyTorch, scikit-learn, MLOps, experiment tracking
-  ai_engineer    — Claude/LLM apps, RAG, tool use, prompt engineering
-  fullstack      — Next.js, monorepos, Docker, CI/CD
-  data_engineer  — ETL/ELT, Airflow, dbt, Spark, streaming
-  data_scientist — EDA, statistics, A/B tests, forecasting
-
-Collaboration model:
-1. Write high-level decisions and goals to shared memory FIRST so all agents have context.
-2. Dispatch sub-tasks — specialists read memory and past messages automatically.
-3. Use call_specialists_parallel for independent work; sequential for dependent work.
-4. After key artifacts are produced, use request_peer_review for cross-domain validation:
-   - Backend schema → ai_engineer reviews for LLM-friendliness
-   - ML pipeline → data_scientist reviews feature logic
-   - API design → frontend reviews for usability
-5. Use request_revision when feedback uncovers real issues worth fixing.
-6. Synthesize everything into a final report with files, decisions, and next steps.
-
-Always store important decisions in memory (decisions.*) and final artifacts (artifacts.*).
-Be decisive — make reasonable assumptions, don't ask clarifying questions."""
 
 
 @dataclass
@@ -230,6 +48,8 @@ class SupervisorAgent:
         project_root: str = ".",
         verbose: bool = True,
         max_workers: int = 4,
+        memory: SharedMemory | None = None,
+        bus: MessageBus | None = None,
     ):
         self.client = client
         self.project_root = str(Path(project_root).resolve())
@@ -237,8 +57,8 @@ class SupervisorAgent:
         self.max_workers = max_workers
 
         # Shared across supervisor + all specialists
-        self.memory = SharedMemory()
-        self.bus = MessageBus()
+        self.memory = memory or SharedMemory()
+        self.bus = bus or MessageBus()
 
         self._specialist_results: list[AgentResult] = []
 

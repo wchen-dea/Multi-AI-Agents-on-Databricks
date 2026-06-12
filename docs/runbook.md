@@ -17,11 +17,11 @@ Required local environment variables:
 
 - ANTHROPIC_API_KEY
 
-Required shared-memory backend variable:
+Optional shared-memory backend variable:
 
 - MONGODB_URI (for example: mongodb://localhost:27017)
 
-Required message bus variable:
+Optional message bus variable:
 
 - RABBITMQ_URL (default: amqp://guest:guest@localhost:5672/)
 
@@ -34,6 +34,14 @@ Optional MongoDB memory configuration:
 
 - MONGODB_DB (default: agentic_application)
 - MONGODB_MEMORY_COLLECTION (default: shared_memory)
+
+Optional runtime wiring configuration:
+
+- AI_APP_IMPLEMENTATION (classic or langgraph, default: classic)
+- SUPERVISOR_MAX_WORKERS (default: 4)
+- ANTHROPIC_MODEL (default: claude-opus-4-7)
+- ANTHROPIC_MAX_TOKENS (default: 8096)
+- SUPERVISOR_MAX_ITERATIONS (default: 40)
 
 Optional runtime variables for MCP data retrieval:
 
@@ -84,7 +92,7 @@ Containerized run with MongoDB and RabbitMQ:
 docker compose -f container/docker-compose.yml up --build
 ```
 
-RabbitMQ management UI: http://localhost:15672 (guest/guest by default).
+RabbitMQ management UI: <http://localhost:15672> (guest/guest by default).
 
 ## Validation Checklist
 
@@ -161,7 +169,8 @@ DATABRICKS_VOLUME_PATH format:
 
 ## Operational Notes
 
-- Shared memory is persisted in MongoDB using MONGODB_URI/MONGODB_DB/MONGODB_MEMORY_COLLECTION.
-- Inter-agent messages are routed through a RabbitMQ topic exchange (`agent_messages`). Each agent has a durable inbox queue (`agent_inbox.<name>`); configure with RABBITMQ_URL.
+- Runtime dependencies are assembled by `src/ai_app/runtime_factory.py`, which builds the Anthropic client, memory backend, message bus, and selected supervisor implementation from environment + CLI overrides.
+- Shared memory uses MongoDB when available (`MONGODB_URI`/`MONGODB_DB`/`MONGODB_MEMORY_COLLECTION`) and degrades to an in-memory store if MongoDB is unavailable.
+- Inter-agent messages use RabbitMQ topic exchange (`agent_messages`) with durable inbox queues (`agent_inbox.<name>`) when RabbitMQ is available, and degrade to an in-memory bus if RabbitMQ is unavailable.
 - Use --reset-memory for clean reruns to avoid stale coordination context.
 - For production rollout, require manual workflow dispatch with deploy_prod=true.

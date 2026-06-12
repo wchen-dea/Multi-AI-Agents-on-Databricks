@@ -3,10 +3,11 @@
 - Status: Accepted
 - Date: 2026-06-09
 - Deciders: Agentic Application maintainers
+- Technical Story: N/A
 
 ## Context
 
-`BaseSpecialistAgent` accumulated ~200 lines of hand-written JSON schema dictionaries (`extra_tools = [...]`) and manual `_dispatch_tool` if/elif chains across every specialist. This created:
+`BaseSpecialistAgent` accumulated ~200 lines of hand-written JSON schema dictionaries (`extra_tools = [...]`) and manual `_dispatch_tool` if/elif chains across specialists. This pattern created:
 
 - Brittle, unvalidated tool contracts that could silently drift from their Python implementations.
 - No IDE support or type safety on tool inputs.
@@ -26,11 +27,11 @@ The supervisor orchestration layer (`SupervisorAgent`, peer review loop, paralle
 
 ## Consequences
 
-- Eliminates ~200 lines of JSON schema boilerplate; tool contracts stay in sync with Python signatures.
-- Tool inputs are validated by Pydantic before execution; type errors surface at the call site.
-- `AgentResult` fields are validated on construction; invalid state is not possible.
-- Side-effect tracking (files written, memory keys, messages sent) is handled uniformly in tool closures via `ctx.deps.result`.
-- `pydantic-ai[anthropic]` becomes a direct dependency, replacing the bare `anthropic` package.
+- Eliminates ~200 lines of JSON schema boilerplate, keeping tool contracts aligned with Python signatures.
+- Validates tool inputs with Pydantic before execution, so type errors surface at the call site.
+- Validates `AgentResult` fields at construction time, preventing invalid state.
+- Handles side-effect tracking (files written, memory keys, messages sent) uniformly in tool closures via `ctx.deps.result`.
+- Adds `pydantic-ai[anthropic]` as a direct dependency, replacing the bare `anthropic` package.
 
 ## Alternatives Considered
 

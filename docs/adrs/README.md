@@ -19,6 +19,7 @@ This directory contains Architecture Decision Records for major technical decisi
 
 ## How To Add A New ADR
 
-1. Copy `template.md` to a new numbered file, such as `0004-short-title.md`.
-2. Fill in Context, Decision, Consequences, and Alternatives Considered.
+1. Copy `template.md` to a new numbered file, such as `0006-short-title.md`.
+2. Fill in metadata plus the required section order:
+   Context, Decision, Consequences, Alternatives Considered.
 3. Add the new ADR link to the ADR Index in this file.

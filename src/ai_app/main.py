@@ -25,16 +25,24 @@ import os
 import sys
 from pathlib import Path
 
-import anthropic
 from dotenv import load_dotenv
 
-from .supervisor_langgraph import LangGraphSupervisorAgent
-from .supervisor import SupervisorAgent
+from .runtime_factory import build_runtime, config_from_env
 
 load_dotenv(dotenv_path=Path(__file__).resolve().parents[2] / ".env")
 
 LOGGER = logging.getLogger(__name__)
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s - %(message)s"
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
 
 BANNER = """
 ╔══════════════════════════════════════════════════════════════════╗
@@ -54,6 +62,8 @@ def configure_logging(verbose: bool) -> None:
 
 
 def parse_args() -> argparse.Namespace:
+    default_workers = _env_int("SUPERVISOR_MAX_WORKERS", 4)
+    default_impl = os.getenv("AI_APP_IMPLEMENTATION", "classic")
     p = argparse.ArgumentParser(
         description="Supervisor + specialist Claude agents with memory and messaging.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -64,13 +74,13 @@ def parse_args() -> argparse.Namespace:
                    help="Directory where agents write files (default: ./output).")
     p.add_argument("--quiet", action="store_true",
                    help="Suppress intermediate tool logs.")
-    p.add_argument("--workers", type=int, default=4, metavar="N",
-                   help="Max parallel specialist threads (default: 4).")
+    p.add_argument("--workers", type=int, default=default_workers, metavar="N",
+                   help=f"Max parallel specialist threads (default: {default_workers}).")
     p.add_argument(
         "--implementation",
         choices=["classic", "langgraph"],
-        default="classic",
-        help="Orchestration implementation to use (default: classic).",
+        default=default_impl,
+        help=f"Orchestration implementation to use (default: {default_impl}).",
     )
     p.add_argument("--show-memory", action="store_true",
                    help="Print shared memory snapshot in the final report.")
@@ -122,25 +132,24 @@ def main() -> None:
     args = parse_args()
     configure_logging(verbose=not args.quiet)
 
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        LOGGER.error("ANTHROPIC_API_KEY not set. Copy .env.example to .env and add your key.")
-        sys.exit(1)
-
     project = Path(args.project)
-    project.mkdir(parents=True, exist_ok=True)
 
     if not args.quiet:
         print(BANNER.format(task=args.task, project=project))
 
-    client = anthropic.Anthropic(api_key=api_key)
-    supervisor_cls = SupervisorAgent if args.implementation == "classic" else LangGraphSupervisorAgent
-    supervisor = supervisor_cls(
-        client=client,
+    config = config_from_env(
         project_root=str(project),
-        verbose=not args.quiet,
+        implementation=args.implementation,
         max_workers=args.workers,
+        verbose=not args.quiet,
     )
+    try:
+        runtime = build_runtime(config)
+    except ValueError as exc:
+        LOGGER.error(str(exc))
+        sys.exit(1)
+
+    supervisor = runtime.supervisor
 
     if args.reset_memory:
         supervisor.memory.clear()

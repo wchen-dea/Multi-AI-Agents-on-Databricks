@@ -4,6 +4,8 @@ Agentic Application is a supervisor-driven multi-agent engineering system powere
 
 The platform coordinates specialist agents through shared memory, typed messaging, and feedback loops so teams can generate production-ready code and artifacts collaboratively.
 
+The runtime is assembled explicitly by a lightweight runtime factory, making dependency wiring and implementation selection environment-driven and test-friendly.
+
 ## Why This Project
 
 - Multi-agent orchestration with explicit specialist roles.
@@ -11,6 +13,7 @@ The platform coordinates specialist agents through shared memory, typed messagin
 - Collaboration primitives for memory sharing and inter-agent messaging.
 - Databricks-backed retrieval through an MCP gateway.
 - Packaging and deployment support with `uv`, wheel builds, and Databricks CI/CD.
+- Explicit runtime assembly via `runtime_factory.py` for predictable startup behavior.
 
 ## Specialist Agents
 
@@ -33,6 +36,18 @@ cp .env.example .env
 uv run multi-ai-agent --task "build a user authentication system"
 uv run multi-ai-agent --task "build a user authentication system" --implementation langgraph
 ```
+
+Optional environment-driven runtime defaults:
+
+- `AI_APP_IMPLEMENTATION` (`classic` or `langgraph`)
+- `SUPERVISOR_MAX_WORKERS` (default: `4`)
+- `ANTHROPIC_MODEL` (default: `claude-opus-4-7`)
+- `ANTHROPIC_MAX_TOKENS` (default: `8096`)
+- `SUPERVISOR_MAX_ITERATIONS` (default: `40`)
+- `MONGODB_URI` / `MONGODB_DB` / `MONGODB_MEMORY_COLLECTION`
+- `RABBITMQ_URL`
+
+If MongoDB or RabbitMQ is unavailable, the app degrades to in-memory collaboration backends so local iteration can continue.
 
 ## Useful Commands
 
@@ -61,9 +76,14 @@ agentic-application/
 ├── src/
 │   └── ai_app/
 │       ├── main.py
+│       ├── runtime_factory.py
+│       ├── settings.py
+│       ├── orchestration.py
 │       ├── supervisor.py
+│       ├── supervisor_langgraph.py
 │       ├── integrations/
 │       ├── agents/
+│       │   └── registry.py
 │       ├── utils/
 │       │   ├── memory.py
 │       │   └── message_bus.py

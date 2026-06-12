@@ -23,7 +23,9 @@ docker compose -f container/docker-compose.yml up --build
 By default, Compose configures:
 
 - MONGODB_URI as mongodb://mongodb:27017
-- RABBITMQ_URL as amqp://<user>:<pass>@rabbitmq:5672/
+- RABBITMQ_URL as `amqp://USERNAME:PASSWORD@rabbitmq:5672/`
+- AI_APP_IMPLEMENTATION as classic (unless overridden)
+- SUPERVISOR_MAX_WORKERS as 4 (unless overridden)
 
 Optional task overrides:
 
@@ -31,12 +33,15 @@ Optional task overrides:
 APP_TASK="build a churn prediction model" \
 APP_PROJECT="/workspace/output" \
 APP_WORKERS=4 \
+AI_APP_IMPLEMENTATION=langgraph \
 docker compose -f container/docker-compose.yml up --build
 ```
 
+If MongoDB or RabbitMQ is temporarily unavailable, the app can still run using in-memory fallback collaboration backends.
+
 RabbitMQ management UI:
 
-- http://localhost:15672 (guest/guest by default)
+- <http://localhost:15672> (guest/guest by default)
 
 ## Stop and cleanup
 

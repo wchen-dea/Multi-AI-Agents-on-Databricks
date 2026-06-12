@@ -3,14 +3,15 @@
 - Status: Accepted
 - Date: 2026-06-09
 - Deciders: Agentic Application maintainers
+- Technical Story: N/A
 
 ## Context
 
-The application must coordinate multiple specialist agents while preserving role-specific behavior and providing high-level quality control. A single flat agent cannot provide consistent domain separation or robust peer-review loops for complex engineering tasks.
+The application must coordinate multiple specialist agents while preserving role-specific behavior and maintaining high-level quality control. A single flat agent cannot provide consistent domain separation or robust peer-review loops for complex engineering tasks.
 
 ## Decision
 
-Adopt a supervisor-specialist architecture:
+Adopt a supervisor-specialist architecture with explicit control and collaboration boundaries:
 
 - A `SupervisorAgent` decomposes user tasks, routes work, requests peer review, and synthesizes outputs.
 - Specialist agents (`frontend`, `backend`, `ml_engineer`, `ai_engineer`, `fullstack`, `data_engineer`, `data_scientist`) execute delegated tasks.
@@ -18,8 +19,8 @@ Adopt a supervisor-specialist architecture:
 
 ## Consequences
 
-- Improves task decomposition, role clarity, and output quality through explicit review/revision loops.
-- Adds orchestration complexity and requires stable collaboration primitives.
+- Improves task decomposition, role clarity, and output quality through explicit review and revision loops.
+- Increases orchestration complexity and depends on stable collaboration primitives.
 - Makes specialist behavior easier to evolve independently over time.
 
 ## Alternatives Considered
